@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Culinary English Book | Teacher Netza</title>
+    
+    <link rel="icon" type="image/png" href="https://drive.google.com/thumbnail?id=1bOFY9XiVAv-WRQnVHXSnL5FHVEoK3UAp&sz=w128">
+    <link rel="apple-touch-icon" href="https://drive.google.com/thumbnail?id=1bOFY9XiVAv-WRQnVHXSnL5FHVEoK3UAp&sz=w512">
+    <meta name="theme-color" content="#1A2B4C">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        /* ==========================================================================
+           1. CORE DESIGN & COLOR PALETTE
+           ========================================================================== */
+        :root {
+            /* Branding Core */
+            --rc-navy: #1A2B4C;
+            --rc-navy-light: #2A406D;
+            --accent-crimson: #991B1B; /* Rojo Culinario / Vino */
+            --accent-gold: #D97706;    /* Dorado */
+            
+            /* Book Colors */
+            --book-bg: #FAF9F6;        /* Ivory / Crema para las páginas */
+            --book-border: #E5E0D8;
+            --text-heading: #1A2B4C;
+            --text-body: #374151;
+            --text-muted: #6B7280;
+            
+            /* UI Elements */
+            --success: #059669;
+            --error: #DC2626;
+            
+            /* Book Physics */
+            --page-width: 100%;
+            --page-max-width: 550px;
+            --page-height: 80vh;
+            --page-min-height: 600px;
+            --radius-book: 2px 20px 20px 2px;
+            --shadow-book: 15px 15px 35px rgba(0,0,0,0.3);
+            --transition-flip: 0.8s cubic-bezier(0.645, 0.045, 0.355, 1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; outline: none; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: radial-gradient(circle at center, var(--rc-navy-light) 0%, var(--rc-navy) 100%);
+            color: var(--text-body);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden; /* Evita scroll en la pantalla principal para el efecto libro */
+        }
+
+        h1, h2, h3, h4 { font-family: 'Playfair Display', serif; color: var(--text-heading); }
+
+        /* ==========================================================================
+           2. THE 3D BOOK ENGINE
+           ========================================================================== */
+        .book-container {
+            position: relative;
+            width: var(--page-width);
+            max-width: var(--page-max-width);
+            height: var(--page-height);
+            min-height: var(--page-min-height);
+            perspective: 2000px; /* Profundidad 3D */
+            margin: 0 15px;
+        }
+
+        .page {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--book-bg);
+            border-radius: var(--radius-book);
+            box-shadow: inset 5px 0 20px rgba(0,0,0,0.05), var(--shadow-book);
+            border-left: 15px solid var(--rc-navy); /* El lomo del libro */
+            transform-origin: left center;
+            transition: transform var(--transition-flip), opacity var(--transition-flip);
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            backface-visibility: hidden;
+            z-index: 1;
+        }
+
+        /* Estilo del Scrollbar de las páginas */
+        .page::-webkit-scrollbar { width: 6px; }
+        .page::-webkit-scrollbar-track { background: transparent; }
+        .page::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
+
+        /* Efecto de vuelta de página (Voltea a la izquierda y desaparece suavemente) */
+        .page.flipped {
+            transform: rotateY(-110deg) scale(0.95);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Contenido interno de la página */
+        .page-content {
+            padding: 2.5rem 2rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Decoración estilo libro */
+        .page-border {
+            border: 1px solid var(--book-border);
+            padding: 1.5rem;
+            border-radius: 12px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        /* Número de página */
+        .page-number {
+            position: absolute;
+            bottom: 15px;
+            right: 20px;
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        /* ==========================================================================
+           3. UI CONTROLS (NEXT/PREV BUTTONS)
+           ========================================================================== */
+        .book-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+            padding-top: 1.5rem;
+            border-top: 1px dashed var(--book-border);
+            z-index: 10;
+        }
+
+        .btn-page {
+            background: transparent;
+            border: 2px solid var(--rc-navy);
+            color: var(--rc-navy);
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-family: 'Poppins';
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-page:hover { background: var(--rc-navy); color: white; }
+        .btn-page:disabled { border-color: #D1D5DB; color: #9CA3AF; cursor: not-allowed; background: transparent; }
+
+        /* ==========================================================================
+           4. SPECIFIC PAGE DESIGNS
+           ========================================================================== */
+        
+        /* PORTADA (PAGE 1) */
+        .cover-logo { width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--rc-navy); margin: 0 auto 1.5rem; display: block; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .cover-title { font-size: 2.8rem; text-align: center; line-height: 1.1; margin-bottom: 0.5rem; color: var(--rc-navy); }
+        .cover-subtitle { text-align: center; color: var(--accent-crimson); font-family: 'Poppins'; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; font-size: 0.85rem; margin-bottom: 2.5rem; }
+        
+        .input-chef { width: 100%; padding: 15px; border: 0; border-bottom: 2px solid var(--text-muted); background: transparent; text-align: center; font-family: 'Playfair Display'; font-size: 1.5rem; color: var(--text-heading); margin-bottom: 2rem; transition: 0.3s; }
+        .input-chef:focus { border-bottom-color: var(--accent-gold); }
+        .input-chef::placeholder { color: #D1D5DB; font-style: italic; font-size: 1.2rem; }
+
+        /* CONTENIDO (PAGES 2-6) */
+        .chapter-title { font-size: 1.8rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--accent-gold); padding-bottom: 5px; display: flex; align-items: center; gap: 10px; }
+        .chapter-title i { color: var(--accent-crimson); font-size: 1.5rem; }
+
+        /* Vocab List & Audio Buttons */
+        .vocab-list { display: flex; flex-direction: column; gap: 15px; }
+        .vocab-item { display: flex; align-items: flex-start; gap: 15px; padding: 12px; background: white; border-radius: 12px; border: 1px solid var(--book-border); box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+        
+        .btn-audio { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--rc-navy); color: white; cursor: pointer; flex-shrink: 0; transition: 0.2s; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+        .btn-audio:active { transform: scale(0.9); }
+        .btn-audio.playing { background: var(--accent-gold); animation: pulseAudio 1s infinite; }
+        @keyframes pulseAudio { 0% { box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(217, 119, 6, 0); } 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); } }
+
+        .vocab-word { font-family: 'Playfair Display'; font-size: 1.3rem; font-weight: 700; color: var(--rc-navy); display: block; line-height: 1; }
+        .vocab-type { font-size: 0.75rem; color: var(--accent-crimson); text-transform: uppercase; font-weight: 700; letter-spacing: 1px; }
+        .vocab-def { font-size: 0.9rem; color: var(--text-muted); margin-top: 5px; }
+
+        /* Image Grid for Utensils */
+        .tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .tool-card { background: white; border: 1px solid var(--book-border); padding: 15px; border-radius: 12px; text-align: center; }
+        .tool-icon { font-size: 2rem; color: var(--text-muted); margin-bottom: 10px; }
+        .tool-name { font-weight: 700; color: var(--rc-navy); font-family: 'Playfair Display'; font-size: 1.1rem; }
+
+        /* Recipe Sequence Box */
+        .recipe-box { background: #FDE68A; color: #92400E; padding: 20px; border-radius: 12px; font-family: 'Playfair Display'; font-style: italic; font-size: 1.1rem; margin-top: 1rem; border-left: 4px solid var(--accent-gold); }
+
+        /* ==========================================================================
+           5. EXAM ENGINE (PAGE 7)
+           ========================================================================== */
+        .q-box { margin-bottom: 20px; }
+        .q-text { font-weight: 600; font-size: 1.05rem; margin-bottom: 8px; color: var(--text-heading); }
+        .q-select { width: 100%; padding: 12px; border: 2px solid var(--book-border); border-radius: 8px; font-family: 'Poppins'; font-size: 1rem; background: white; color: var(--rc-navy); font-weight: 600; outline: none; transition: 0.3s; }
+        .q-select:focus { border-color: var(--rc-navy); }
+        
+        .q-select.correct { border-color: var(--success); background: #ECFDF5; color: var(--success); }
+        .q-select.wrong { border-color: var(--error); background: #FEF2F2; color: var(--error); animation: shake 0.4s; }
+        @keyframes shake { 10%,90%{transform:translateX(-2px)} 20%,80%{transform:translateX(3px)} 30%,50%,70%{transform:translateX(-4px)} 40%,60%{transform:translateX(4px)} }
+
+        .btn-submit-exam { width: 100%; padding: 15px; background: var(--accent-crimson); color: white; border: none; border-radius: 30px; font-weight: 700; font-size: 1.1rem; cursor: pointer; margin-top: 1rem; transition: 0.3s; font-family: 'Poppins'; }
+        .btn-submit-exam:hover { background: #7F1D1D; }
+
+        /* ==========================================================================
+           6. CONTRAPORTADA (PAGE 8)
+           ========================================================================== */
+        .certificate-box { text-align: center; margin: auto 0; }
+        .cert-icon { font-size: 4rem; color: var(--accent-gold); margin-bottom: 1rem; }
+        .cert-title { font-size: 2.2rem; color: var(--rc-navy); margin-bottom: 0.5rem; }
+        .cert-name { font-size: 1.8rem; font-style: italic; color: var(--accent-crimson); border-bottom: 2px solid var(--book-border); display: inline-block; padding: 0 20px 5px; margin-bottom: 1rem; }
+        
+        .gnu-license { font-size: 0.75rem; color: var(--text-muted); text-align: center; margin-top: auto; padding-top: 20px; border-top: 1px solid var(--book-border); }
+
+        /* TOAST */
+        #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--rc-navy); color: white; padding: 12px 24px; border-radius: 30px; font-weight: 500; opacity: 0; transition: 0.3s; pointer-events: none; z-index: 9999; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(10px); }
+
+    </style>
+</head>
+<body>
+
+    <div id="toast"><i class="fas fa-info-circle"></i> <span id="toast-msg">Mensaje</span></div>
+
+    <div class="book-container" id="book">
+
+        <div class="page" id="page-1" style="z-index: 8;">
+            <div class="page-content">
+                <div class="page-border" style="justify-content: center;">
+                    <img src="https://drive.google.com/thumbnail?id=1bOFY9XiVAv-WRQnVHXSnL5FHVEoK3UAp&sz=w200" class="cover-logo" alt="Logo">
+                    <h1 class="cover-title">The Culinary<br>English Lab</h1>
+                    <div class="cover-subtitle">Vocabulary & Recipes</div>
+                    
+                    <p style="text-align: center; color: var(--text-muted); font-size: 0.95rem; margin-bottom: 2rem;">
+                        Bienvenido a la escuela de artes culinarias del idioma inglés. Por favor, escribe tu nombre para comenzar tu entrenamiento como Chef.
+                    </p>
+
+                    <input type="text" id="chef-name" class="input-chef" placeholder="Chef's Name..." autocomplete="off">
+
+                    <div class="book-controls" style="justify-content: center; border:none; padding-top:0;">
+                        <button class="btn-page" onclick="openBook()"><i class="fas fa-book-open"></i> OPEN BOOK</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page" id="page-2" style="z-index: 7;">
+            <div class="page-content">
+                <div class="page-border">
+                    <h2 class="chapter-title"><i class="fas fa-lemon"></i> Tastes & Textures</h2>
+                    <p style="font-size: 0.95rem;">¿Cómo describes la comida en inglés? Olvida el "It's good". Usa estos adjetivos para sonar como un crítico culinario.</p>
+                    
+                    <div class="vocab-list">
+                        <div class="vocab-item">
+                            <button class="btn-audio" onclick="playAudio('Savory')"><i class="fas fa-volume-up"></i></button>
+                            <div>
+                                <span class="vocab-type">Adjective</span>
+                                <span class="vocab-word">Savory</span>
+                                <div class="vocab-def">Salado o condimentado (no dulce). También se le llama Umami. <em>"This soup is very savory."</em></div>
+                            </div>
+                        </div>
+                        <div class="vocab-item">
+                            <button class="btn-audio" onclick="playAudio('Bland')"><i class="fas fa-volume-up"></i></button>
+                            <div>
+                                <span class="vocab-type">Adjective</span>
+                                <span class="vocab-word">Bland</span>
+                                <div class="vocab-def">Desabrido, sin sabor. Le falta sal o especias. <em>"The rice is too bland."</em></div>
+                            </div>
+                        </div>
+                        <div class="vocab-item">
+                            <button class="btn-audio" onclick="playAudio('Crunchy')"><i class="fas fa-volume-up"></i></button>
+                            <div>
+                                <span class="vocab-type">Adjective</span>
+                                <span class="vocab-word">Crunchy</span>
+                                <div class="vocab-def">Crujiente. Hace ruido al morderlo (ej. papas fritas, zanahorias).</div>
+                            </div>
+                        </div>
+                        <div class="vocab-item">
+                            <button class="btn-audio" onclick="playAudio('Sour')"><i class="fas fa-volume-up"></i></button>
+                            <div>
+                                <span class="vocab-type">Adjective</span>
+                                <span class="vocab-word">Sour</span>
+                                <div class="vocab-def">Ácido o agrio, como un limón o yogur natural.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="book-controls">
+                        <button class="btn-page" onclick="prevPage(1)"><i class="fas fa-chevron-left"></i> Cover</button>
+                        <button class="btn-page" onclick="nextPage(3)">Next <i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <div class="page-number">Page 2</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page" id="page-3" style="z-index: 6;">
+            <div class="page-content">
+                <div class="page-border">
+                    <h2 class="chapter-title"><i class="fas fa-utensils"></i> Tools of the Trade</h2>
+                    <p style="font-size: 0.95rem;">El arsenal de un Chef. Aprende cómo se llaman las herramientas que usas todos los días.</p>
+                    
+                    <div class="tools-grid">
+                        <div class="tool-card" onclick="playAudio('Frying pan')">
+                            <i class="fas fa-fire tool-icon"></i>
+                            <div class="tool-name">Frying pan</div>
+                            <div style="font-size:0.8rem; color:var(--text-muted);">Sartén</div>
+                        </div>
+                        <div class="tool-card" onclick="playAudio('Saucepan')">
+                            <i class="fas fa-bowl-food tool-icon"></i>
+                            <div class="tool-name">Saucepan</div>
+                            <div style="font-size:0.8rem; color:var(--text-muted);">Cacerola / Olla</div>
+                        </div>
+                        <div class="tool-card" onclick="playAudio('Whisk')">
+                            <i class="fas fa-blender tool-icon"></i>
+                            <div class="tool-name">Whisk</div>
+                            <div style="font-size:0.8rem; color:var(--text-muted);">Batidor de globo</div>
+                        </div>
+                        <div class="tool-card" onclick="playAudio('Spatula')">
+                            <i class="fas fa-spoon tool-icon"></i>
+                            <div class="tool-name">Spatula</div>
+                            <div style="font-size:0.8rem; color:var(--text-muted);">Espátula</div>
+                        </div>
+                        <div class="tool-card" onclick="playAudio('Cutting board')">
+                            <i class="fas fa-border-all tool-icon"></i>
+                            <div class="tool-name">Cutting board</div>
+                            <div style="font-size:0.8rem; color:var(--text-muted);">Tabla de picar</div>
+                        </div>
+                        <div class="tool-card" onclick="playAudio('Knife')">
+                            <i class="fas fa-pen tool-icon"></i> <div class="tool-name">Knife</div>
+                            <div style="font-size:0.8rem; color:var(--text-muted);">Cuchillo</div>
+                        </div>
+                    </div>
+                    <p style="text-align:center; font-size:0.8rem; margin-top:15px; color:var(--accent-gold);"><em>Tap any tool to hear pronunciation</em></p>
+
+                    <div class="book-controls">
+                        <button class="btn-page" onclick="prevPage(2)"><i class="fas fa-chevron-left"></i> Prev</button>
+                        <button class="btn-page" onclick="nextPage(4)">Next <i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <div class="page-number">Page 3</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page" id="page-4" style="z-index: 5;">
+            <div class="page-content">
+                <div class="page-border">
+                    <h2 class="chapter-title"><i class="fas fa-carrot"></i> Prep Verbs</h2>
+                    <p style="font-size: 0.95rem;">Antes de cocinar, hay que preparar (Mise en place). Estos verbos son esenciales para las instrucciones.</p>
+                    
+                    <div class="vocab-list">
+                        <div class="vocab-item">
+                            <button class="btn-audio" onclick="playAudio('Chop')"><i class="fas fa-volume-up"></i></button>
+                            <div><span class="vocab-word">Chop</span><div class="vocab-def">Picar en pedazos irregulares. <em>"Chop the onions."</em></div></div>
+                        </div>
+                        <div class="vocab-item">
+                            <button class="btn-audio" onclick="playAudio('Slice')"><i class="fas fa-volume-up"></i></button>
+                            <div><span class="vocab-word">Slice</span><div class="vocab-def">Rebanar o cortar en rodajas. <em>"Slice the tomatoes."</em></div></div>
+                        </div>
+                        <div class="vocab-item">
+                            <button class="btn-audio" onclick="playAudio('Peel')"><i class="fas fa-volume-up"></i></button>
+                            <div><span class="vocab-word">Peel</span><div class="vocab-def">Pelar (quitar la cáscara). <em>"Peel the potatoes."</em></div></div>
+                        </div>
+                        <div class="vocab-item">
+                            <button class="btn-audio" onclick="playAudio('Grate')"><i class="fas fa-volume-up"></i></button>
+                            <div><span class="vocab-word">Grate</span><div class="vocab-def">Rallar. <em>"Grate the cheese."</em></div></div>
+                        </div>
+                        <div class="vocab-item">
+                            <button class="btn-audio" onclick="playAudio('Pour')"><i class="fas fa-volume-up"></i></button>
+                            <div><span class="vocab-word">Pour</span><div class="vocab-def">Verter un líquido. <em>"Pour the milk into the bowl."</em></div></div>
+                        </div>
+                    </div>
+
+                    <div class="book-controls">
+                        <button class="btn-page" onclick="prevPage(3)"><i class="fas fa-chevron-left"></i> Prev</button>
+                        <button class="btn-page" onclick="nextPage(5)">Next <i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <div class="page-number">Page 4</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page" id="page-5" style="z-index: 4;">
+            <div class="page-content">
+                <div class="page-border">
+                    <h2 class="chapter-title"><i class="fas fa-fire-burner"></i> Cooking Verbs</h2>
+                    <p style="font-size: 0.95rem;">Llegó la hora de la acción. Aquí están los métodos de cocción al fuego.</p>
+                    
+                    <div class="vocab-list">
+                        <div class="vocab-item">
+                            <button class="btn-audio" onclick="playAudio('Boil')"><i class="fas fa-volume-up"></i></button>
+                            <div><span class="vocab-word">Boil</span><div class="vocab-def">Hervir (cocinar en agua burbujeante). <em>"Boil the pasta."</em></div></div>
+                        </div>
+                        <div class="vocab-item">
+                            <button class="btn-audio" onclick="playAudio('Fry')"><i class="fas fa-volume-up"></i></button>
+                            <div><span class="vocab-word">Fry</span><div class="vocab-def">Freír (cocinar en aceite caliente). <em>"Fry the eggs."</em></div></div>
+                        </div>
+                        <div class="vocab-item">
+                            <button class="btn-audio" onclick="playAudio('Bake')"><i class="fas fa-volume-up"></i></button>
+                            <div><span class="vocab-word">Bake</span><div class="vocab-def">Hornear (usado para panes y pasteles). <em>"Bake a cake."</em></div></div>
+                        </div>
+                        <div class="vocab-item">
+                            <button class="btn-audio" onclick="playAudio('Roast')"><i class="fas fa-volume-up"></i></button>
+                            <div><span class="vocab-word">Roast</span><div class="vocab-def">Rostizar/Asar al horno (usado para carnes o vegetales).</div></div>
+                        </div>
+                        <div class="vocab-item">
+                            <button class="btn-audio" onclick="playAudio('Simmer')"><i class="fas fa-volume-up"></i></button>
+                            <div><span class="vocab-word">Simmer</span><div class="vocab-def">Hervir a fuego lento. <em>"Let the sauce simmer."</em></div></div>
+                        </div>
+                    </div>
+
+                    <div class="book-controls">
+                        <button class="btn-page" onclick="prevPage(4)"><i class="fas fa-chevron-left"></i> Prev</button>
+                        <button class="btn-page" onclick="nextPage(6)">Next <i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <div class="page-number">Page 5</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page" id="page-6" style="z-index: 3;">
+            <div class="page-content">
+                <div class="page-border">
+                    <h2 class="chapter-title"><i class="fas fa-scroll"></i> The Recipe Format</h2>
+                    <p style="font-size: 0.95rem;">Para explicar una receta, no puedes solo aventar los verbos. Necesitas <strong>Sequence Words</strong> (Palabras de secuencia) para dar orden.</p>
+                    
+                    <ul style="list-style: square; padding-left: 20px; font-weight: 600; color: var(--rc-navy); margin-bottom: 1rem;">
+                        <li>First, ... (Primero)</li>
+                        <li>Then, / Next, ... (Después)</li>
+                        <li>Meanwhile, ... (Mientras tanto)</li>
+                        <li>Finally, ... (Finalmente)</li>
+                    </ul>
+
+                    <div class="recipe-box">
+                        <strong>How to make simple pasta:</strong><br>
+                        <strong>First</strong>, boil water in a large pot.<br>
+                        <strong>Then</strong>, add the pasta and salt.<br>
+                        <strong>Meanwhile</strong>, chop some tomatoes and garlic.<br>
+                        <strong>Next</strong>, fry the tomatoes in a frying pan.<br>
+                        <strong>Finally</strong>, mix everything together. Enjoy!
+                    </div>
+
+                    <div class="book-controls">
+                        <button class="btn-page" onclick="prevPage(5)"><i class="fas fa-chevron-left"></i> Prev</button>
+                        <button class="btn-page" onclick="nextPage(7)">Next <i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <div class="page-number">Page 6</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page" id="page-7" style="z-index: 2;">
+            <div class="page-content">
+                <div class="page-border">
+                    <h2 class="chapter-title"><i class="fas fa-pen-fancy"></i> The Chef's Exam</h2>
+                    <p style="font-size: 0.95rem;">Demuestra que leíste el libro. Selecciona la palabra correcta para completar la receta.</p>
+                    
+                    <form id="recipe-test">
+                        <div class="q-box">
+                            <div class="q-text">1. To cook something in hot oil is to:</div>
+                            <select class="q-select" data-ans="fry"><option value="">Select...</option><option value="boil">Boil</option><option value="fry">Fry</option><option value="bake">Bake</option></select>
+                        </div>
+                        <div class="q-box">
+                            <div class="q-text">2. You cut onions with a:</div>
+                            <select class="q-select" data-ans="knife"><option value="">Select...</option><option value="whisk">Whisk</option><option value="spatula">Spatula</option><option value="knife">Knife</option></select>
+                        </div>
+                        <div class="q-box">
+                            <div class="q-text">3. Food that is very salty or spicy is:</div>
+                            <select class="q-select" data-ans="savory"><option value="">Select...</option><option value="savory">Savory</option><option value="bland">Bland</option><option value="sour">Sour</option></select>
+                        </div>
+                        <div class="q-box">
+                            <div class="q-text">4. To remove the skin of a potato is to:</div>
+                            <select class="q-select" data-ans="peel"><option value="">Select...</option><option value="slice">Slice</option><option value="peel">Peel</option><option value="grate">Grate</option></select>
+                        </div>
+                        <div class="q-box">
+                            <div class="q-text">5. The last step of a recipe starts with:</div>
+                            <select class="q-select" data-ans="finally"><option value="">Select...</option><option value="first">First</option><option value="meanwhile">Meanwhile</option><option value="finally">Finally</option></select>
+                        </div>
+                        
+                        <button type="button" class="btn-submit-exam" onclick="checkTest()">GRADE EXAM</button>
+                    </form>
+
+                    <div class="book-controls" style="margin-top:20px;">
+                        <button class="btn-page" onclick="prevPage(6)"><i class="fas fa-chevron-left"></i> Prev</button>
+                        <button class="btn-page" id="btn-to-cert" onclick="nextPage(8)" disabled><i class="fas fa-lock"></i> Locked</button>
+                    </div>
+                    <div class="page-number">Page 7</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page" id="page-8" style="z-index: 1;">
+            <div class="page-content">
+                <div class="page-border" style="background: radial-gradient(circle, #FFF, #F3F4F6); text-align: center;">
+                    <div class="certificate-box">
+                        <i class="fas fa-award cert-icon"></i>
+                        <h2 class="cert-title">Certified Master Chef</h2>
+                        <div class="cert-name" id="cert-chef-name">Name</div>
+                        <p style="font-size: 1.1rem; color: var(--text-body); max-width: 300px; margin: 0 auto;">
+                            Has completado exitosamente el vocabulario culinario del idioma inglés con un puntaje perfecto de <strong style="color:var(--success);">100%</strong>.
+                        </p>
+                    </div>
+
+                    <div class="book-controls" style="justify-content: center; border:none;">
+                        <button class="btn-page" onclick="location.reload()"><i class="fas fa-redo"></i> Read Again</button>
+                    </div>
+
+                    <div class="gnu-license">
+                        Rators Club - English Language Lab<br>
+                        &copy; 2026 Teacher Netza<br>
+                        <i class="fab fa-html5"></i> <i class="fab fa-css3-alt"></i> <i class="fab fa-js"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div> <script>
+        // --- 1. MEMORIA Y NOMBRE ---
+        let chefName = "Student";
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function openBook() {
+            const input = document.getElementById('chef-name').value.trim();
+            if(input.length < 2) {
+                showToast("Please enter your name, Chef!");
+                document.getElementById('chef-name').focus();
+                return;
+            }
+            chefName = input;
+            document.getElementById('cert-chef-name').innerText = chefName;
+            
+            // Voltear la Portada (Página 1)
+            document.getElementById('page-1').classList.add('flipped');
+            showToast(`Welcome, Chef ${chefName}!`);
+        }
+
+        // --- 2. LÓGICA DEL LIBRO (PAGE FLIP) ---
+        // Para avanzar: A la página actual se le pone la clase .flipped
+        function nextPage(targetPageNum) {
+            const current = targetPageNum - 1;
+            document.getElementById(`page-${current}`).classList.add('flipped');
+            window.scrollTo(0,0);
+        }
+
+        // Para retroceder: A la página anterior se le quita la clase .flipped
+        function prevPage(targetPageNum) {
+            document.getElementById(`page-${targetPageNum}`).classList.remove('flipped');
+            window.scrollTo(0,0);
+        }
+
+        // --- 3. AUDIO ENGINE (TEXT TO SPEECH) ---
+        const synth = window.speechSynthesis;
+        let engVoice = null;
+
+        function loadVoices() {
+            const voices = synth.getVoices();
+            engVoice = voices.find(v => v.lang.includes('en-US') && v.name.includes('Google')) || voices.find(v => v.lang.includes('en-US'));
+        }
+        if (speechSynthesis.onvoiceschanged !== undefined) { speechSynthesis.onvoiceschanged = loadVoices; }
+
+        function playAudio(word) {
+            if (synth.speaking) synth.cancel();
+            
+            // Buscar el botón clickeado por el evento activo
+            const btn = event.currentTarget;
+            
+            const utterance = new SpeechSynthesisUtterance(word);
+            if (engVoice) utterance.voice = engVoice;
+            utterance.lang = 'en-US';
+            utterance.rate = 0.85; 
+            
+            utterance.onstart = () => {
+                document.querySelectorAll('.btn-audio').forEach(b => b.classList.remove('playing'));
+                if(btn) btn.classList.add('playing');
+            };
+            utterance.onend = () => {
+                if(btn) btn.classList.remove('playing');
+            };
+
+            synth.speak(utterance);
+        }
+
+        // --- 4. EXAM ENGINE (PAGE 7) ---
+        function checkTest() {
+            const selects = document.querySelectorAll('.q-select');
+            let score = 0;
+            let total = selects.length;
+
+            selects.forEach(select => {
+                const userAns = select.value;
+                const correctAns = select.getAttribute('data-ans');
+
+                if (userAns === correctAns) {
+                    select.classList.remove('wrong');
+                    select.classList.add('correct');
+                    score++;
+                } else {
+                    select.classList.remove('correct');
+                    select.classList.add('wrong');
+                    // setTimeout para reiniciar la vibración
+                    setTimeout(() => select.classList.remove('wrong'), 400); 
+                    // se la volvemos a poner para que quede roja
+                    setTimeout(() => select.classList.add('wrong'), 410);
+                }
+            });
+
+            if (score === total) {
+                // Desbloquear siguiente página
+                const btnNext = document.getElementById('btn-to-cert');
+                btnNext.disabled = false;
+                btnNext.innerHTML = 'Get Certificate <i class="fas fa-chevron-right"></i>';
+                
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                showToast("¡Perfect Score! Ve a la última página.");
+                
+                // Opcional: Voltear automáticamente después de 1 segundo
+                setTimeout(() => { nextPage(8); }, 1500);
+            } else {
+                showToast(`Obtuviste ${score}/${total}. Corrige las casillas rojas.`);
+            }
+        }
+
+        // Iniciar
+        window.onload = loadVoices;
+
+    </script>
+</body>
+</html>
